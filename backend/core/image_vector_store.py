@@ -11,7 +11,10 @@ _client_cache = {}
 
 def _get_client(uri: str) -> MilvusClient:
     if uri not in _client_cache:
-        _client_cache[uri] = MilvusClient(uri=uri)
+        kwargs = {"uri": uri, "token": settings.MILVUS_TOKEN}
+        if settings.MILVUS_SERVER_PEM_PATH:
+            kwargs["server_pem_path"] = settings.MILVUS_SERVER_PEM_PATH
+        _client_cache[uri] = MilvusClient(**kwargs)
     return _client_cache[uri]
 
 

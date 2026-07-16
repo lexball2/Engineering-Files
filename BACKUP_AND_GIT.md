@@ -22,6 +22,18 @@ OSS_SESSION_TOKEN=
 
 Use a private bucket and a RAM user that only has permissions for this bucket/prefix.
 
+OSS only stores uploaded file bodies. Document search, image search, and image asset processing still need Milvus. For local development, keep Milvus running on `localhost:19530` or set a remote URI:
+
+```dotenv
+MILVUS_HOST=localhost
+MILVUS_PORT=19530
+MILVUS_URI=
+MILVUS_TOKEN=
+MILVUS_SERVER_PEM_PATH=
+```
+
+For managed/cloud Milvus, set `MILVUS_URI` and `MILVUS_TOKEN`, then restart the backend.
+
 ## Create a local source backup
 
 Run:
