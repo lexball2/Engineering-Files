@@ -5,7 +5,7 @@ This project can be deployed in two ways:
 - Docker Compose: recommended for the first ECS deployment.
 - systemd: useful when you want to run the backend directly on the host.
 
-This compose profile runs MySQL and Redis on the ECS host. Use OSS for uploaded files. For a later higher-availability production setup, migrate MySQL to RDS and Milvus to a managed/private deployment. Do not commit `.env.production`.
+This compose profile runs MySQL, Redis, and Milvus on the ECS host. Use OSS for uploaded files. For a later higher-availability production setup, migrate MySQL to RDS and Milvus to a managed/private deployment. Do not commit `.env.production`.
 
 ## 1. Docker Compose deployment
 
@@ -28,6 +28,9 @@ MYSQL_HOST=mysql
 MYSQL_PASSWORD=<database-password>
 MYSQL_ROOT_PASSWORD=<root-password-for-local-mysql-container>
 MYSQL_SSL_CA=
+MILVUS_URI=http://milvus:19530
+MILVUS_TOKEN=
+MILVUS_MINIO_SECRET_KEY=<strong-password-for-milvus-internal-minio>
 ```
 
 Run database migration before starting production replicas:
@@ -51,10 +54,11 @@ The app listens only on localhost:
 - Web: `127.0.0.1:8080`
 - Redis: `127.0.0.1:6379`
 - MySQL: `127.0.0.1:3306`
+- Milvus: `127.0.0.1:19530`
 
 Put host Nginx in front of it.
 
-The MySQL data volume is named `engineering-files_mysql-data`. Back it up regularly. If you later switch to RDS, set `MYSQL_HOST` to the RDS private endpoint and set `MYSQL_SSL_CA` to the RDS CA file path.
+The important local data volumes are `engineering-files_mysql-data`, `engineering-files_milvus-data`, `engineering-files_etcd-data`, and `engineering-files_minio-data`. Back them up regularly. If you later switch to RDS, set `MYSQL_HOST` to the RDS private endpoint and set `MYSQL_SSL_CA` to the RDS CA file path. If you later switch to managed Milvus, set `MILVUS_URI` to the managed endpoint and fill `MILVUS_TOKEN`.
 
 ## 2. Nginx
 

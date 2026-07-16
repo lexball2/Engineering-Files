@@ -49,9 +49,11 @@ def _validate_production_settings() -> None:
     local_mysql_hosts = {"localhost", "127.0.0.1", "mysql"}
     if not settings.MYSQL_SSL_CA and settings.MYSQL_HOST not in local_mysql_hosts:
         problems.append("MYSQL_SSL_CA is required for verified database TLS")
-    if not settings.MILVUS_TOKEN:
+    local_milvus_hosts = {"http://milvus:19530", "http://localhost:19530", "http://127.0.0.1:19530"}
+    using_local_milvus = settings.milvus_uri in local_milvus_hosts
+    if not settings.MILVUS_TOKEN and not using_local_milvus:
         problems.append("MILVUS_TOKEN is required")
-    if not settings.milvus_uri.startswith("https://"):
+    if not settings.milvus_uri.startswith("https://") and not using_local_milvus:
         problems.append("MILVUS_URI must use https:// in production")
     if not settings.DEEPSEEK_API_KEY or not settings.DASHSCOPE_API_KEY:
         problems.append("DeepSeek and DashScope API keys are required")
