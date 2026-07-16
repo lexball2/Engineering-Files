@@ -1,0 +1,19 @@
+[Unit]
+Description=Engineering Files FastAPI backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=engineering
+Group=engineering
+WorkingDirectory=/opt/engineering-files
+EnvironmentFile=/etc/engineering-files/api.env
+ExecStart=/opt/engineering-files/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

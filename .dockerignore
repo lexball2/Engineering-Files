@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 .git
 .venv
 __pycache__

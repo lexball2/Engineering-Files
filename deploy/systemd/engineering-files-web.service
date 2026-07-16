@@ -1,0 +1,18 @@
+[Unit]
+Description=Engineering Files frontend static server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=engineering
+Group=engineering
+WorkingDirectory=/opt/engineering-files/frontend
+ExecStart=/usr/bin/python3 -m http.server 8080 --bind 127.0.0.1 --directory /opt/engineering-files/frontend/dist
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

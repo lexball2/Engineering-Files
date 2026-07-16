@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libmagic1 \
+    && apt-get install -y --no-install-recommends ca-certificates libmagic1 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 app
 
