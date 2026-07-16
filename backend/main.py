@@ -46,7 +46,8 @@ def _validate_production_settings() -> None:
         problems.append("REDIS_URL is required for shared sessions and distributed rate limiting")
     if settings.MYSQL_USER.lower() == "root":
         problems.append("MYSQL_USER must be a dedicated least-privilege account")
-    if not settings.MYSQL_SSL_CA:
+    local_mysql_hosts = {"localhost", "127.0.0.1", "mysql"}
+    if not settings.MYSQL_SSL_CA and settings.MYSQL_HOST not in local_mysql_hosts:
         problems.append("MYSQL_SSL_CA is required for verified database TLS")
     if not settings.MILVUS_TOKEN:
         problems.append("MILVUS_TOKEN is required")

@@ -5,7 +5,7 @@ This project can be deployed in two ways:
 - Docker Compose: recommended for the first ECS deployment.
 - systemd: useful when you want to run the backend directly on the host.
 
-Use managed RDS MySQL, managed or separately deployed Milvus, and OSS for production data. Do not commit `.env.production`.
+This compose profile runs MySQL and Redis on the ECS host. Use OSS for uploaded files. For a later higher-availability production setup, migrate MySQL to RDS and Milvus to a managed/private deployment. Do not commit `.env.production`.
 
 ## 1. Docker Compose deployment
 
@@ -24,6 +24,10 @@ CORS_ORIGINS=https://your-domain.com
 TRUSTED_HOSTS=your-domain.com,www.your-domain.com,127.0.0.1,localhost
 REDIS_PASSWORD=<same-password-used-inside-REDIS_URL>
 REDIS_URL=redis://:<same-password>@redis:6379/0
+MYSQL_HOST=mysql
+MYSQL_PASSWORD=<database-password>
+MYSQL_ROOT_PASSWORD=<root-password-for-local-mysql-container>
+MYSQL_SSL_CA=
 ```
 
 Run database migration before starting production replicas:
@@ -46,8 +50,11 @@ The app listens only on localhost:
 - API: `127.0.0.1:8000`
 - Web: `127.0.0.1:8080`
 - Redis: `127.0.0.1:6379`
+- MySQL: `127.0.0.1:3306`
 
 Put host Nginx in front of it.
+
+The MySQL data volume is named `engineering-files_mysql-data`. Back it up regularly. If you later switch to RDS, set `MYSQL_HOST` to the RDS private endpoint and set `MYSQL_SSL_CA` to the RDS CA file path.
 
 ## 2. Nginx
 
