@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
 
 from backend.config import settings
 
@@ -56,7 +57,14 @@ class LocalStorage:
         path = self._path_for_location(location)
         path.unlink(missing_ok=True)
 
-    def response(self, location: str, filename: str, media_type: str, headers: dict[str, str] | None = None):
+    def response(
+        self,
+        location: str,
+        filename: str,
+        media_type: str,
+        headers: dict[str, str] | None = None,
+        background: BackgroundTask | None = None,
+    ):
         path = self._path_for_location(location)
         if not path.is_file():
             raise FileNotFoundError(str(path))
@@ -65,6 +73,7 @@ class LocalStorage:
             filename=filename,
             media_type=media_type,
             headers=headers,
+            background=background,
         )
 
     def _path_for_key(self, key: str) -> Path:
@@ -147,7 +156,14 @@ class OssStorage:
         object_key = self._key_from_location(location)
         self._client.delete_object(self._oss.DeleteObjectRequest(bucket=self.bucket, key=object_key))
 
-    def response(self, location: str, filename: str, media_type: str, headers: dict[str, str] | None = None):
+    def response(
+        self,
+        location: str,
+        filename: str,
+        media_type: str,
+        headers: dict[str, str] | None = None,
+        background: BackgroundTask | None = None,
+    ):
         payload = self.get_bytes(location)
         response_headers = dict(headers or {})
         response_headers.setdefault("Content-Disposition", _content_disposition(filename))
@@ -155,6 +171,7 @@ class OssStorage:
             iter([payload]),
             media_type=media_type,
             headers=response_headers,
+            background=background,
         )
 
     def _object_key(self, key: str) -> str:
@@ -206,9 +223,16 @@ class StorageManager:
         filename: str,
         media_type: str = "application/octet-stream",
         headers: dict[str, str] | None = None,
+        background: BackgroundTask | None = None,
     ):
         try:
-            return self._backend_for_location(location).response(location, filename, media_type, headers=headers)
+            return self._backend_for_location(location).response(
+                location,
+                filename,
+                media_type,
+                headers=headers,
+                background=background,
+            )
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail="文件不存在") from exc
 

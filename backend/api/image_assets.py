@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, text
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
 from backend.api.images import ALLOWED_SUFFIXES, IMAGE_DIR, MAX_IMAGE_SIZE, THUMB_DIR, _delete_image_vectors
@@ -582,6 +583,42 @@ def search_assets(req: AssetSearchRequest, db: Session = Depends(get_db), _curre
     return [_to_asset_info(asset, usage_by_image, score=scores.get(asset.id)) for asset in ranked[:limit]]
 
 
+def _record_completed_asset_download(image_id: str, platform: str, note: str) -> None:
+    db = SessionLocal()
+    try:
+        asset = db.query(ImageAsset).filter(ImageAsset.id == image_id).first()
+        if not asset:
+            return
+
+        now = datetime.now()
+        usage_insert = mysql_insert(ImagePlatformUsage).values(
+            id=str(uuid4()),
+            image_id=image_id,
+            platform=platform,
+            usage_count=1,
+            last_used_at=now,
+        )
+        db.execute(usage_insert.on_duplicate_key_update(
+            usage_count=ImagePlatformUsage.usage_count + 1,
+            last_used_at=now,
+        ))
+        db.add(ImageUsageRecord(id=str(uuid4()), image_id=image_id, platform=platform, note=note))
+        db.query(ImageAsset).filter(ImageAsset.id == image_id).update(
+            {
+                ImageAsset.download_count: func.coalesce(ImageAsset.download_count, 0) + 1,
+                ImageAsset.last_downloaded_at: now,
+                ImageAsset.last_used_at: now,
+            },
+            synchronize_session=False,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to record completed image asset download image_id=%s", image_id)
+    finally:
+        db.close()
+
+
 @router.post("/image-assets/download")
 def download_asset(req: AssetDownloadRequest, db: Session = Depends(get_db), _current_user: User = Depends(require_staff)):
     platform = req.platform.strip()
@@ -592,34 +629,11 @@ def download_asset(req: AssetDownloadRequest, db: Session = Depends(get_db), _cu
     if not asset or not storage.exists(asset.file_path):
         raise HTTPException(status_code=404, detail="图片不存在")
 
-    now = datetime.now()
-    usage_insert = mysql_insert(ImagePlatformUsage).values(
-        id=str(uuid4()),
-        image_id=asset.id,
-        platform=platform,
-        usage_count=1,
-        last_used_at=now,
-    )
-    db.execute(usage_insert.on_duplicate_key_update(
-        usage_count=ImagePlatformUsage.usage_count + 1,
-        last_used_at=now,
-    ))
-
-    db.add(ImageUsageRecord(id=str(uuid4()), image_id=asset.id, platform=platform, note=req.note.strip()))
-    db.query(ImageAsset).filter(ImageAsset.id == asset.id).update(
-        {
-            ImageAsset.download_count: func.coalesce(ImageAsset.download_count, 0) + 1,
-            ImageAsset.last_downloaded_at: now,
-            ImageAsset.last_used_at: now,
-        },
-        synchronize_session=False,
-    )
-    db.commit()
-
     return storage.response(
         asset.file_path,
         filename=safe_download_name(asset.filename, asset.stored_name),
         media_type=asset.mime_type or "application/octet-stream",
+        background=BackgroundTask(_record_completed_asset_download, asset.id, platform, req.note.strip()),
     )
 
 

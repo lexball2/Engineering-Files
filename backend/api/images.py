@@ -9,6 +9,7 @@ from PIL import Image
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 
 from backend.config import settings
@@ -20,7 +21,7 @@ from backend.core.vision_understanding import generate_image_metadata, understan
 from backend.core.auth_dependencies import get_current_user, require_admin, require_staff
 from backend.core.storage import storage
 from backend.core.upload_security import inspect_image_content, read_upload_limited, safe_download_name
-from backend.database import get_db
+from backend.database import SessionLocal, get_db
 from backend.models.image_asset import ImageAsset
 from backend.models.user import User
 
@@ -526,25 +527,35 @@ def view_image(
     )
 
 
+def _record_completed_image_download(image_id: str) -> None:
+    db = SessionLocal()
+    try:
+        db.query(ImageAsset).filter(ImageAsset.id == image_id).update(
+            {
+                ImageAsset.download_count: func.coalesce(ImageAsset.download_count, 0) + 1,
+                ImageAsset.last_downloaded_at: datetime.now(),
+            },
+            synchronize_session=False,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to record completed image download image_id=%s", image_id)
+    finally:
+        db.close()
+
+
 @router.post("/images/download", summary="Download image and count popularity")
 def download_image(req: ImageIdRequest, db: Session = Depends(get_db), _current_user: User = Depends(get_current_user)):
     asset = db.query(ImageAsset).filter(ImageAsset.id == req.id, ImageAsset.status == "ready").first()
     if not asset or not storage.exists(asset.file_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
-    db.query(ImageAsset).filter(ImageAsset.id == asset.id).update(
-        {
-            ImageAsset.download_count: func.coalesce(ImageAsset.download_count, 0) + 1,
-            ImageAsset.last_downloaded_at: datetime.now(),
-        },
-        synchronize_session=False,
-    )
-    db.commit()
-
     return storage.response(
         asset.file_path,
         filename=safe_download_name(asset.filename, asset.stored_name),
         media_type=asset.mime_type or "application/octet-stream",
+        background=BackgroundTask(_record_completed_image_download, asset.id),
     )
 
 
