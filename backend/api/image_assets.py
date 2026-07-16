@@ -11,6 +11,7 @@ from PIL import Image
 from pydantic import BaseModel, Field
 from sqlalchemy import func, text
 from sqlalchemy.dialects.mysql import insert as mysql_insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
@@ -353,6 +354,10 @@ def requeue_unfinished_image_assets(limit: int = 200) -> int:
             .limit(limit)
             .all()
         ]
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.warning("Skip image asset job recovery because database tables are not ready: %s", exc)
+        return 0
     finally:
         db.close()
 
