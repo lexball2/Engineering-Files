@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckSquare,
+  ChevronDown,
   Download,
   Eye,
   FileImage,
@@ -44,6 +45,68 @@ interface UploadBatchResponse {
 
 const DEFAULT_PLATFORMS = ["小红书", "抖音", "微信公众号", "视频号", "B站", "快手", "今日头条", "微博"];
 type SortMode = "recommended" | "downloads";
+
+type SelectOption<T extends string> = {
+  value: T;
+  label: string;
+};
+
+function CompactSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+}: {
+  value: T;
+  options: SelectOption<T>[];
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  return (
+    <div
+      className="asset-custom-select"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        className="asset-custom-select-trigger"
+        aria-label={ariaLabel}
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span>{selected?.label ?? value}</span>
+        <ChevronDown size={16} />
+      </button>
+      {open && (
+        <div className="asset-custom-select-menu" role="listbox" aria-label={ariaLabel}>
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                type="button"
+                key={option.value}
+                className={`asset-custom-select-option${active ? " selected" : ""}`}
+                role="option"
+                aria-selected={active}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function tokenHeaders(): Record<string, string> {
   return {};
@@ -112,6 +175,17 @@ export default function ImageAssets() {
     return Array.from(byId.values());
   }, [assets, processingAssets]);
   const selectedCount = selectedIds.size;
+  const platformOptions = useMemo<SelectOption<string>[]>(
+    () => platforms.map((item) => ({ value: item, label: item })),
+    [platforms],
+  );
+  const sortOptions = useMemo<SelectOption<SortMode>[]>(
+    () => [
+      { value: "recommended", label: "推荐排序" },
+      { value: "downloads", label: "下载次数最多" },
+    ],
+    [],
+  );
 
   const loadBasics = useCallback(async () => {
     const platformRes = await fetch("/api/image-assets/platforms", { headers: tokenHeaders(), credentials: "same-origin" });
@@ -293,16 +367,24 @@ export default function ImageAssets() {
             </label>
             <label style={{ display: "grid", gap: 7, fontSize: 18, color: "var(--text-muted)" }}>
               新媒体平台
-              <select value={platform} onChange={(e) => { setPlatform(e.target.value); setDownloadPlatform(e.target.value); }} style={{ height: 49, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-glass)", background: "var(--surface)", color: "var(--text-primary)", padding: "0 15px" }}>
-                {platforms.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
+              <CompactSelect
+                ariaLabel="选择新媒体平台"
+                value={platform}
+                options={platformOptions}
+                onChange={(nextPlatform) => {
+                  setPlatform(nextPlatform);
+                  setDownloadPlatform(nextPlatform);
+                }}
+              />
             </label>
             <label style={{ display: "grid", gap: 7, fontSize: 18, color: "var(--text-muted)" }}>
               排序
-              <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} style={{ height: 49, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-glass)", background: "var(--surface)", color: "var(--text-primary)", padding: "0 15px" }}>
-                <option value="recommended">推荐排序</option>
-                <option value="downloads">下载次数最多</option>
-              </select>
+              <CompactSelect
+                ariaLabel="选择排序方式"
+                value={sortMode}
+                options={sortOptions}
+                onChange={setSortMode}
+              />
             </label>
             <button onClick={searchAssets} disabled={loading} style={{ height: 49, display: "flex", alignItems: "center", gap: 9, justifyContent: "center", padding: "0 21px", borderRadius: "var(--radius-sm)", background: "var(--primary-solid)", color: "#fff", fontWeight: 700 }}>
               {loading ? <Loader2 size={23} style={{ animation: "spin 1s linear infinite" }} /> : <Filter size={23} />}筛选
