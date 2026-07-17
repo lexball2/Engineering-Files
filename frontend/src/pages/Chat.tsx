@@ -7,8 +7,24 @@ interface ChatProps {
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
 }
 
+interface SourcePreview {
+  filename: string;
+  content: string;
+  total_chars: number;
+}
+
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "请求失败";
+}
+
+function cleanAnswerContent(content: string): string {
+  return content
+    .replace(/【\s*来源[:：][^】]+】/g, "")
+    .replace(/[（(]\s*来源[:：][^)）]+[)）]/g, "")
+    .replace(/\s*来源[:：]\s*[^。\n]+/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function renderInline(text: string): ReactNode[] {
@@ -76,6 +92,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [sourcePreview, setSourcePreview] = useState<SourcePreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -99,6 +117,33 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       setSelectedImage(null);
       setInput("");
       setMessages([]);
+    }
+  }
+
+  async function previewSource(source: ChatSource) {
+    const sourceKey = source.source || source.filename;
+    if (!sourceKey || previewLoading) return;
+    setPreviewLoading(true);
+    try {
+      const res = await fetch("/api/chat/source-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        credentials: "same-origin",
+        body: JSON.stringify({ source: sourceKey }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `预览失败 (${res.status})`);
+      }
+      setSourcePreview(await res.json());
+    } catch (error) {
+      setSourcePreview({
+        filename: source.filename,
+        content: getErrorMessage(error),
+        total_chars: 0,
+      });
+    } finally {
+      setPreviewLoading(false);
     }
   }
 
@@ -230,21 +275,22 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   function Bubble({ role, content, sources, relatedImages }: ChatMessage) {
     const isUser = role === "user";
     const visibleSources = sources;
+    const displayContent = isUser ? content : cleanAnswerContent(content);
     return (
       <div style={{ display: "flex", gap: 14, marginBottom: 29, justifyContent: isUser ? "flex-end" : "flex-start" }}>
         {!isUser && <div style={{ width: 49, height: 49, borderRadius: "var(--radius)", background: "var(--primary-container)", border: "1px solid rgba(255,183,125,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Bot size={27} color="var(--primary)" /></div>}
         <div className="chat-message-content" style={{ width: "fit-content", maxWidth: "75%", minWidth: 0 }}>
           <div style={{ padding: "21px 25px", borderRadius: "var(--radius-lg)", ...(isUser ? { background: "var(--chat-user-bubble)", border: "1px solid var(--chat-user-bubble-border)", borderTopRightRadius: 4 } : { background: "var(--surface)", border: "1px solid var(--border-glass)", borderTopLeftRadius: 4 }), wordBreak: "break-word", lineHeight: 1.7 }}>
-            <SafeMessage content={content} />
+            <SafeMessage content={displayContent} />
             {!isUser && <ImageResults images={relatedImages} />}
           </div>
           {!isUser && visibleSources && visibleSources.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
               {visibleSources.map((source, index) => (
-                <span key={`${source.filename}-${index}`} title={source.source || source.filename} style={{ display: "inline-flex", alignItems: "center", gap: 7, maxWidth: 330, padding: "9px 13px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-glass)", background: "rgba(255,255,255,0.04)", color: "var(--text-muted)", fontSize: 18 }}>
+                <button key={`${source.filename}-${index}`} onClick={() => previewSource(source)} title="点击预览来源" style={{ display: "inline-flex", alignItems: "center", gap: 7, maxWidth: 330, padding: "9px 13px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-glass)", background: "rgba(255,255,255,0.04)", color: "var(--text-muted)", fontSize: 18 }}>
                   <FileText size={20} color="var(--primary)" />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{source.filename}</span>
-                </span>
+                </button>
               ))}
             </div>
           )}
@@ -274,6 +320,24 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         {loading && <div style={{ display: "flex", gap: 11, alignItems: "center", padding: "15px 0" }}><Loader2 size={25} color="var(--primary)" style={{ animation: "spin 1s linear infinite" }} /><span style={{ fontSize: 20, color: "var(--text-muted)" }}>思考中...</span></div>}
         <div ref={endRef} />
       </div>
+      {sourcePreview && (
+        <div onClick={() => setSourcePreview(null)} style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(0,0,0,0.46)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={(event) => event.stopPropagation()} className="glass-panel" style={{ width: "min(860px, 92vw)", maxHeight: "82vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--border-glass)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <h3 style={{ fontSize: 18, color: "var(--primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sourcePreview.filename}</h3>
+                <span style={{ color: "var(--text-muted)", fontSize: 12 }}>共 {sourcePreview.total_chars.toLocaleString()} 字</span>
+              </div>
+              <button onClick={() => setSourcePreview(null)} title="关闭" style={{ width: 34, height: 34, borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <X size={17} />
+              </button>
+            </div>
+            <pre style={{ margin: 0, padding: 18, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", fontFamily: "var(--font)", fontSize: 13, lineHeight: 1.65 }}>
+              {sourcePreview.content}{sourcePreview.total_chars > sourcePreview.content.length ? "\n\n... 内容已截断，仅显示前 2000 字" : ""}
+            </pre>
+          </div>
+        </div>
+      )}
       <div style={{ padding: "0 24px 10px" }}>
         {selectedImage && (
           <div className="chat-compose" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 7, color: "var(--text-muted)", fontSize: 12 }}>

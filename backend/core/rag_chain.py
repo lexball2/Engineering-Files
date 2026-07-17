@@ -114,7 +114,7 @@ def extract_sources(docs_with_score) -> list[dict[str, str]]:
         seen.add(key)
         sources.append({
             "filename": filename,
-            "source": filename,
+            "source": raw_source,
             "score": f"{score:.4f}" if isinstance(score, (int, float)) else str(score),
         })
     return sources
@@ -160,8 +160,7 @@ def build_context(docs_with_score) -> str:
         return "无匹配知识库内容"
     parts = []
     for doc, _ in docs_with_score:
-        source = _clean_source_name(str(doc.metadata.get("source", "未知来源")))
-        parts.append(f"【来源：{source}】\n{doc.page_content}")
+        parts.append(f"【资料片段】\n{doc.page_content}")
     return _truncate_context("\n\n---\n\n".join(parts))
 
 # ====================== 4. 同步/流式/异步三套接口（修复5、6） ======================

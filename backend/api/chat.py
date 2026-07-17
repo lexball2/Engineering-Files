@@ -1,7 +1,7 @@
 ﻿"""知识库问答接口——接收用户问题，返回 AI 回答"""
 import logging
 import json
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -10,7 +10,10 @@ from backend.core.memory import memory
 from backend.config import settings
 from backend.core.rag_chain import ask, ask_stream, extract_sources, retrieve_documents
 from backend.core.auth_dependencies import get_current_user
+from backend.core.document_loader import load_document
+from backend.core.storage import storage
 from backend.database import SessionLocal
+from backend.models.document_asset import DocumentAsset
 from backend.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -58,6 +61,16 @@ class ChatClearRequest(BaseModel):
     session_id: str = Field(..., min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$", description="要清理的会话 ID")
 
 
+class SourcePreviewRequest(BaseModel):
+    source: str = Field(..., min_length=1, max_length=1024, description="来源文件标识")
+
+
+class SourcePreviewResponse(BaseModel):
+    filename: str
+    content: str
+    total_chars: int
+
+
 def _memory_key(user: User, session_id: str) -> str:
     return f"{user.id}:{session_id}"
 
@@ -71,6 +84,41 @@ def _department_filter(user: User) -> str | None:
 
 def _sse(event: str, data) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@router.post("/chat/source-preview", response_model=SourcePreviewResponse, summary="预览问答来源文档")
+def preview_chat_source(req: SourcePreviewRequest, current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        document = (
+            db.query(DocumentAsset)
+            .filter((DocumentAsset.file_path == req.source) | (DocumentAsset.filename == req.source))
+            .first()
+        )
+        if not document:
+            raise HTTPException(status_code=404, detail="来源文件不存在")
+        if settings.RAG_REQUIRE_DEPARTMENT_MATCH and current_user.role != "admin":
+            if (document.department or "") != (current_user.department or ""):
+                raise HTTPException(status_code=403, detail="无权预览该来源文件")
+        if not storage.exists(document.file_path):
+            raise HTTPException(status_code=404, detail="来源文件已不存在")
+
+        suffix = "." + (document.file_type or "").lower().lstrip(".")
+        if suffix in {".txt", ".md"}:
+            text = storage.get_bytes(document.file_path).decode("utf-8", errors="replace")
+        else:
+            with storage.local_file(document.file_path, suffix=suffix) as local_path:
+                docs = load_document(str(local_path))
+            text = "\n\n".join(doc.page_content for doc in docs)
+
+        preview = text[:2000]
+        return SourcePreviewResponse(
+            filename=document.filename,
+            content=preview,
+            total_chars=len(text),
+        )
+    finally:
+        db.close()
 
 
 @router.post("/chat/clear", summary="清理会话记录")
