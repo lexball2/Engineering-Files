@@ -82,14 +82,7 @@ class MilvusWrapper:
         """自动创建 HNSW 索引（如果不存在）"""
         try:
             indexes = self.client.list_indexes(self.collection_name)
-            has_vector_index = False
-            if isinstance(indexes, list):
-                for idx in indexes:
-                    # 仅当是字典时才读取字段
-                    if isinstance(idx, dict) and idx.get("field_name") == "vector":
-                        has_vector_index = True
-                        break
-            if has_vector_index:
+            if indexes:
                 logger.info(f"[Milvus] 集合 {self.collection_name} vector索引已存在")
                 self.client.load_collection(self.collection_name)
                 return
@@ -103,10 +96,18 @@ class MilvusWrapper:
             metric_type="COSINE",
             params={"M": 16, "efConstruction": 200},
         )
-        self.client.create_index(
-            collection_name=self.collection_name,
-            index_params=index_params,
-        )
+        try:
+            self.client.create_index(
+                collection_name=self.collection_name,
+                index_params=index_params,
+            )
+        except Exception as e:
+            message = str(e).lower()
+            if "at most one distinct index is allowed per field" in message:
+                logger.info(f"[Milvus] 集合 {self.collection_name} 已有 vector 索引，跳过重复创建")
+                self.client.load_collection(self.collection_name)
+                return
+            raise
         # 新建索引后必须加载
         self.client.load_collection(self.collection_name)
         logger.info("[Milvus] 创建索引并加载集合完成 (HNSW, COSINE)")
