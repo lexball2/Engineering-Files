@@ -87,6 +87,16 @@ def _get_document(db: Session, document_id: str) -> DocumentAsset:
         raise HTTPException(status_code=404, detail="文件不存在")
     return document
 
+
+def _vector_failure_detail(error: Exception) -> str:
+    message = str(error)
+    normalized = message.lower()
+    if "dashscope" in normalized or "embedding" in normalized:
+        return "文档格式已通过校验，但调用文本向量化服务失败，请检查 DashScope API Key、余额或网络连接"
+    if "milvus" in normalized or "grpc" in normalized or "connection" in normalized:
+        return "文档格式已通过校验，但写入向量数据库失败，请检查 Milvus 服务是否正常"
+    return "文档格式已通过校验，但向量化入库失败，请查看服务端日志"
+
 @router.post("/upload", response_model=UploadResponse, summary="上传知识文档")
 async def upload(
     file: UploadFile = File(..., description="文档文件，支持 txt/docx/pdf/xlsx/pptx/md"),
@@ -131,7 +141,14 @@ async def upload(
         db.add(document)
         db.commit()
         logger.info(f"收到文件: {original_name} 保存为{safe_name} ({len(content)} bytes)")
-        docs = await run_in_threadpool(load_document, str(temp_path))
+        try:
+            docs = await run_in_threadpool(load_document, str(temp_path))
+        except Exception as parse_error:
+            logger.warning("文档内容解析失败: %s", original_name, exc_info=True)
+            raise HTTPException(
+                status_code=400,
+                detail="文件格式校验通过，但正文内容解析失败，请确认文档未加密且可正常打开",
+            ) from parse_error
         logger.info(f"解析完成: {len(docs)} 段")
         if not docs:
             raise HTTPException(status_code=400, detail="文档内未识别到有效文本")
@@ -145,11 +162,15 @@ async def upload(
             chunk.metadata["category"] = category
             chunk.metadata["owner_id"] = _current_user.id
             chunk.metadata["department"] = _current_user.department or ""
-        embeddings = get_embeddings()
-        vectorstore = get_langchain_vectorstore(embeddings)
-        for chunk in chunks:
-            chunk.metadata.pop("category", None)
-        await run_in_threadpool(vectorstore.add_documents, chunks)
+        try:
+            embeddings = get_embeddings()
+            vectorstore = get_langchain_vectorstore(embeddings)
+            for chunk in chunks:
+                chunk.metadata.pop("category", None)
+            await run_in_threadpool(vectorstore.add_documents, chunks)
+        except Exception as vector_error:
+            logger.error("文档向量化或入库失败: %s", original_name, exc_info=True)
+            raise HTTPException(status_code=503, detail=_vector_failure_detail(vector_error)) from vector_error
         document.status = "ready"
         document.chunks = len(chunks)
         db.commit()
@@ -194,7 +215,7 @@ async def upload(
                 db.delete(persisted)
                 db.commit()
         logger.error(f"文件上传失败：{str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="文档处理失败，请检查文件格式或稍后重试")
+        raise HTTPException(status_code=500, detail="文档上传处理失败，请查看服务端日志")
 
 @router.post("/upload/list", response_model=list[DocInfo], summary="获取上传文档列表")
 def list_uploads(limit: int = 100, offset: int = 0, db: Session = Depends(get_db), _current_user: User = Depends(require_staff)):
