@@ -33,8 +33,9 @@
   --font-subheading: 1.125rem;
   --font-heading: 1.5rem;
   --space-xs: 4px; --space-sm: 8px; --space-md: 16px; --space-lg: 24px; --space-xl: 32px;
-  --sidebar-width: 260px;
-  --topbar-height: 64px;
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 52px;
+  --topbar-height: 56px;
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   --shadow-glow: 0 0 20px rgba(217, 119, 7, 0.15);
 }
@@ -57,9 +58,9 @@ input, textarea, select { font-size: 12px; user-select: text; }
 
 /* application layout */
 .app-main { min-width: 0; min-height: 100vh; }
-.page-frame { width: 100%; padding: 24px 28px 32px; }
+.page-frame { width: 100%; padding: 18px 22px 24px; }
 .page-content { width: 100%; max-width: 1760px; margin: 0 auto; }
-.page-header { min-height: var(--topbar-height); padding-inline: 24px !important; }
+.page-header { min-height: var(--topbar-height); padding-inline: 18px !important; }
 .dashboard-content { min-height: calc(100vh - 56px); display: flex; flex-direction: column; }
 .dashboard-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(280px, 0.8fr) minmax(420px, 1.2fr); gap: 20px; flex: 1; align-items: stretch; }
@@ -68,15 +69,15 @@ input, textarea, select { font-size: 12px; user-select: text; }
 .asset-filter-grid { display: grid; grid-template-columns: minmax(300px, 1.45fr) minmax(190px, 0.8fr) minmax(190px, 0.8fr) auto; gap: 12px; align-items: end; }
 .asset-upload-grid { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.25fr) auto; gap: 12px; align-items: center; }
 .asset-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-.asset-toolbar-button, .asset-danger-button { height: 43px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border-radius: var(--radius-sm); font-weight: 700; border: 1px solid var(--border-glass); }
+.asset-toolbar-button, .asset-danger-button { height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border-radius: var(--radius-sm); font-weight: 700; border: 1px solid var(--border-glass); }
 .asset-toolbar-button { background: var(--surface); color: var(--text-primary); }
 .asset-danger-button { background: rgba(239, 68, 68, 0.14); color: #fecaca; }
 .asset-danger-button:disabled { opacity: 0.45; cursor: not-allowed; }
 .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; align-items: stretch; }
-.asset-card { position: relative; overflow: hidden; border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; min-height: 360px; }
+.asset-card { position: relative; overflow: hidden; border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; min-height: 300px; }
 .asset-card.selected { outline: 2px solid var(--primary); outline-offset: -2px; }
 .asset-select-button { position: absolute; top: 10px; left: 10px; z-index: 2; width: 37px; height: 37px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); color: var(--text-primary); background: rgba(0, 0, 0, 0.42); border: 1px solid rgba(255, 255, 255, 0.12); }
-.asset-status { position: absolute; top: 10px; right: 10px; z-index: 2; height: 30px; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px; border-radius: 999px; font-size: 14px; font-weight: 800; border: 1px solid rgba(255, 255, 255, 0.12); }
+.asset-status { position: absolute; top: 8px; right: 8px; z-index: 2; height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; border-radius: 999px; font-size: 12px; font-weight: 800; border: 1px solid rgba(255, 255, 255, 0.12); }
 .asset-status.ready { color: #bbf7d0; background: rgba(22, 101, 52, 0.54); }
 .asset-status.pending { color: #fde68a; background: rgba(146, 64, 14, 0.58); }
 .asset-status.failed { color: #fecaca; background: rgba(127, 29, 29, 0.64); }
@@ -89,7 +90,7 @@ input, textarea, select { font-size: 12px; user-select: text; }
 .asset-tag.muted { color: var(--text-muted); background: rgba(255,255,255,0.04); }
 .asset-error { color: #fecaca; background: rgba(127, 29, 29, 0.25); border: 1px solid rgba(248, 113, 113, 0.25); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 15px; line-height: 1.4; max-height: 68px; overflow: hidden; }
 .asset-card-actions { margin-top: auto; padding: 0 12px 12px; display: grid; grid-template-columns: 43px minmax(0, 1fr) 43px; gap: 8px; align-items: center; }
-.asset-icon-action, .asset-download-action { height: 43px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; border: 1px solid var(--border-glass); }
+.asset-icon-action, .asset-download-action { height: 34px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 800; border: 1px solid var(--border-glass); }
 .asset-icon-action { color: var(--text-muted); background: transparent; }
 .asset-icon-action.danger { color: #fca5a5; }
 .asset-download-action { color: var(--primary); background: var(--primary-container); }
@@ -150,9 +151,27 @@ html.light .asset-danger-button { color: #b91c1c; background: #fee2e2; }
 html.light .asset-icon-action.danger { color: #b91c1c; }
 html.light .asset-preview-image { background: #eef2f7; }
 
+/* compact production density */
+#root :where(button, input, textarea, select, label, p, span, td, th) {
+  font-size: 12px !important;
+}
+
+#root :where(h1, h2, h3) {
+  font-size: 14px !important;
+}
+
+#root :where(button) {
+  max-height: 36px;
+}
+
+#root :where(button svg, .glass-sidebar svg) {
+  width: 16px !important;
+  height: 16px !important;
+}
+
 /* collapsed sidebar */
-.sidebar-collapsed { width: 69px !important; min-width: 69px !important; padding: 24px 10px !important; }
-.content-expanded { margin-left: 69px !important; }
+.sidebar-collapsed { width: var(--sidebar-collapsed-width) !important; min-width: var(--sidebar-collapsed-width) !important; padding: 16px 6px !important; }
+.content-expanded { margin-left: var(--sidebar-collapsed-width) !important; }
 
 @media (max-width: 1100px) {
   .dashboard-grid { grid-template-columns: 1fr; }

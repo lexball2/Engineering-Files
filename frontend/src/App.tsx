@@ -104,7 +104,7 @@ function ProtectedLayout({ onLogout, role }: { onLogout: () => void; role: UserR
   }
 
   const sidebarCollapsed = collapsed || compactViewport;
-  const ml = sidebarCollapsed ? 69 : 280;
+  const ml = sidebarCollapsed ? 52 : 220;
 
   return (
     <>

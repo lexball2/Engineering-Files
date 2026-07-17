@@ -29,84 +29,84 @@ export default function Sidebar({ username, role, onLogout, collapsed, collapseL
 
   return (
     <aside className={"glass-sidebar" + (collapsed ? " sidebar-collapsed" : "")} style={{
-      width: 280, minWidth: 280, height: "100vh", display: "flex", flexDirection: "column",
-      position: "fixed", left: 0, top: 0, zIndex: 50, padding: "24px 16px",
+      width: 220, minWidth: 220, height: "100vh", display: "flex", flexDirection: "column",
+      position: "fixed", left: 0, top: 0, zIndex: 50, padding: "16px 10px",
       transition: "width 0.25s, padding 0.25s",
     }}>
       {!collapsed ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "0 8px", marginBottom: 28 }}>
-          <div style={{ width: 49, height: 49, borderRadius: "var(--radius)", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <LayoutDashboard size={27} color="var(--on-primary)" />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 6px", marginBottom: 18 }}>
+          <div style={{ width: 34, height: 34, borderRadius: "var(--radius)", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <LayoutDashboard size={18} color="var(--on-primary)" />
           </div>
           <div style={{ overflow: "hidden" }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--primary)", lineHeight: 1.2, whiteSpace: "nowrap" }}>Insight Engine</h1>
-            <p style={{ fontSize: 17, letterSpacing: 0, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap" }}>Knowledge Base</p>
+            <h1 style={{ fontSize: 14, fontWeight: 700, color: "var(--primary)", lineHeight: 1.2, whiteSpace: "nowrap" }}>Insight Engine</h1>
+            <p style={{ fontSize: 12, letterSpacing: 0, color: "var(--text-muted)", textTransform: "uppercase", whiteSpace: "nowrap" }}>Knowledge Base</p>
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <div style={{ width: 45, height: 45, borderRadius: "var(--radius)", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <LayoutDashboard size={25} color="var(--on-primary)" />
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
+          <div style={{ width: 32, height: 32, borderRadius: "var(--radius)", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <LayoutDashboard size={16} color="var(--on-primary)" />
           </div>
         </div>
       )}
 
       {!collapsed && role !== "guest" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "0 8px 16px", padding: "13px 17px", borderRadius: "var(--radius)", background: "rgba(128,128,128,0.08)", border: "1px solid var(--border-glass)" }}>
-          <Search size={23} color="var(--text-muted)" />
-          <input placeholder="搜索知识库..." style={{ background: "none", border: "none", outline: "none", color: "var(--text-primary)", fontSize: 19, width: "100%" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 7, margin: "0 6px 12px", padding: "8px 10px", borderRadius: "var(--radius)", background: "rgba(128,128,128,0.08)", border: "1px solid var(--border-glass)" }}>
+          <Search size={16} color="var(--text-muted)" />
+          <input placeholder="搜索知识库..." style={{ background: "none", border: "none", outline: "none", color: "var(--text-primary)", fontSize: 12, width: "100%" }} />
         </div>
       )}
 
-      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
         {visibleLinks.map(({ to, icon: Icon, label }) => {
           const isActive = pathname === to || (to === "/dashboard" && pathname === "/");
           return (
             <button key={to} onClick={() => nav(to)} title={collapsed ? label : undefined} style={{
-              display: "flex", alignItems: "center", gap: 12, width: "100%",
-              padding: collapsed ? "17px 0" : "17px 19px",
+              display: "flex", alignItems: "center", gap: 8, width: "100%",
+              padding: collapsed ? "10px 0" : "10px 12px",
               justifyContent: collapsed ? "center" : "flex-start",
               borderRadius: "var(--radius)",
               background: isActive ? "var(--primary-container)" : "transparent",
               color: isActive ? "var(--primary)" : "var(--text-muted)",
-              fontSize: 20, fontWeight: isActive ? 600 : 400,
-              borderLeft: !collapsed && isActive ? "4px solid var(--primary)" : "4px solid transparent",
+              fontSize: 12, fontWeight: isActive ? 600 : 400,
+              borderLeft: !collapsed && isActive ? "3px solid var(--primary)" : "3px solid transparent",
               transition: "all 0.2s",
             }}>
-              <Icon size={25} />
+              <Icon size={16} />
               {!collapsed && <span>{label}</span>}
             </button>
           );
         })}
       </nav>
 
-      <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ marginTop: "auto", paddingTop: 10, borderTop: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: 5 }}>
         <button onClick={onToggleTheme} title={lightMode ? "深色模式" : "浅色模式"} style={{
-          display: "flex", alignItems: "center", gap: 10, width: "100%",
-          padding: collapsed ? "8px 0" : "8px 8px",
+          display: "flex", alignItems: "center", gap: 7, width: "100%",
+          padding: collapsed ? "6px 0" : "6px 7px",
           justifyContent: collapsed ? "center" : "flex-start",
           borderRadius: "var(--radius-sm)", background: "transparent",
-          color: "var(--text-muted)", fontSize: 19,
+          color: "var(--text-muted)", fontSize: 12,
         }}>
-          {lightMode ? <Moon size={collapsed ? 25 : 23} /> : <Sun size={collapsed ? 25 : 23} />}
+          {lightMode ? <Moon size={16} /> : <Sun size={16} />}
           {!collapsed && <span>{lightMode ? "深色模式" : "浅色模式"}</span>}
         </button>
 
         {!collapseLocked && <button onClick={onToggleCollapse} title={collapsed ? "展开侧边栏" : "折叠侧边栏"} style={{
-          display: "flex", alignItems: "center", gap: 10, width: "100%",
-          padding: collapsed ? "8px 0" : "8px 8px",
+          display: "flex", alignItems: "center", gap: 7, width: "100%",
+          padding: collapsed ? "6px 0" : "6px 7px",
           justifyContent: collapsed ? "center" : "flex-start",
           borderRadius: "var(--radius-sm)", background: "transparent",
-          color: "var(--text-muted)", fontSize: 19,
+          color: "var(--text-muted)", fontSize: 12,
         }}>
-          {collapsed ? <PanelLeft size={25} /> : <PanelLeftClose size={23} />}
+          {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
           {!collapsed && <span>折叠侧边栏</span>}
         </button>}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", color: "var(--text-muted)", fontSize: 19 }}>
-          {!collapsed && <div style={{ display: "flex", alignItems: "center", gap: 8 }}><User size={23} /><span>{username}</span></div>}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", color: "var(--text-muted)", fontSize: 12 }}>
+          {!collapsed && <div style={{ display: "flex", alignItems: "center", gap: 6 }}><User size={16} /><span>{username}</span></div>}
           <button onClick={onLogout} title="退出登录" style={{ background: "none", color: "var(--text-muted)", padding: 6, display: "flex" }}>
-            <LogOut size={23} />
+            <LogOut size={16} />
           </button>
         </div>
       </div>
