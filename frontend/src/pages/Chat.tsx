@@ -274,20 +274,20 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         {loading && <div style={{ display: "flex", gap: 11, alignItems: "center", padding: "15px 0" }}><Loader2 size={25} color="var(--primary)" style={{ animation: "spin 1s linear infinite" }} /><span style={{ fontSize: 20, color: "var(--text-muted)" }}>思考中...</span></div>}
         <div ref={endRef} />
       </div>
-      <div style={{ padding: "0 28px 20px" }}>
+      <div style={{ padding: "0 24px 10px" }}>
         {selectedImage && (
-          <div className="chat-compose" style={{ marginBottom: 9, display: "flex", alignItems: "center", gap: 9, color: "var(--text-muted)", fontSize: 18 }}>
-            <ImageIcon size={21} color="var(--primary)" />
+          <div className="chat-compose" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 7, color: "var(--text-muted)", fontSize: 12 }}>
+            <ImageIcon size={16} color="var(--primary)" />
             <span>{selectedImage.name}</span>
-            <button onClick={() => setSelectedImage(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex" }}><X size={21} /></button>
+            <button onClick={() => setSelectedImage(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={16} /></button>
           </div>
         )}
-        <div className="glass-panel chat-compose" style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, border: "1px solid rgba(255,183,125,0.1)", boxShadow: "0 0 20px var(--primary-glow)" }}>
+        <div className="glass-panel chat-compose" style={{ padding: "4px 8px", minHeight: 40, display: "flex", alignItems: "center", gap: 6, border: "1px solid rgba(255,183,125,0.1)", boxShadow: "0 0 20px var(--primary-glow)" }}>
           <input id="chat-image-input" type="file" accept="image/*" hidden onChange={(event) => setSelectedImage(event.target.files?.[0] || null)} />
-          <button onClick={() => document.getElementById("chat-image-input")?.click()} title="上传图片识别" style={{ width: 47, height: 47, borderRadius: "var(--radius-sm)", border: "none", background: "rgba(255,255,255,0.04)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><ImageIcon size={23} /></button>
+          <button onClick={() => document.getElementById("chat-image-input")?.click()} title="上传图片识别" style={{ width: 34, height: 34, borderRadius: "var(--radius-sm)", border: "none", background: "rgba(255,255,255,0.04)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, alignSelf: "center", padding: 0 }}><ImageIcon size={17} /></button>
           <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入您的问题..." onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }}
-            style={{ flex: 1, minHeight: 57, border: "none", outline: "none", resize: "none", background: "transparent", color: "var(--text-primary)", fontSize: 20, fontFamily: "inherit", padding: "10px 0" }} />
-          <button onClick={send} disabled={loading || (!input.trim() && !selectedImage)} style={{ width: 53, height: 53, borderRadius: "var(--radius-sm)", border: "none", background: loading || (!input.trim() && !selectedImage) ? "var(--text-muted)" : "var(--primary-solid)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: loading || (!input.trim() && !selectedImage) ? "not-allowed" : "pointer", opacity: loading || (!input.trim() && !selectedImage) ? 0.5 : 1, boxShadow: loading || (!input.trim() && !selectedImage) ? "none" : "0 0 15px var(--primary-glow)", transition: "all 0.2s" }}><Send size={23} /></button>
+            style={{ flex: 1, minHeight: 34, height: 34, border: "none", outline: "none", resize: "none", background: "transparent", color: "var(--text-primary)", fontSize: 12, fontFamily: "inherit", lineHeight: "18px", padding: "8px 0", overflowY: "auto" }} />
+          <button onClick={send} disabled={loading || (!input.trim() && !selectedImage)} style={{ width: 36, height: 36, borderRadius: "var(--radius-sm)", border: "none", background: loading || (!input.trim() && !selectedImage) ? "var(--text-muted)" : "var(--primary-solid)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: loading || (!input.trim() && !selectedImage) ? "not-allowed" : "pointer", opacity: loading || (!input.trim() && !selectedImage) ? 0.5 : 1, boxShadow: loading || (!input.trim() && !selectedImage) ? "none" : "0 0 15px var(--primary-glow)", transition: "all 0.2s", alignSelf: "center", padding: 0 }}><Send size={17} /></button>
         </div>
       </div>
     </div>
