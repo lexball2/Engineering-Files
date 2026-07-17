@@ -356,7 +356,7 @@ export default function ImageAssets() {
       </header>
 
       <main className="page-frame page-content">
-        <section className="glass-panel" style={{ padding: 20, borderRadius: "var(--radius-lg)", marginBottom: 20 }}>
+        <section className="glass-panel asset-filter-panel" style={{ padding: 20, borderRadius: "var(--radius-lg)", marginBottom: 20 }}>
           <div className="asset-filter-grid">
             <label style={{ display: "grid", gap: 7, fontSize: 18, color: "var(--text-muted)" }}>
               关键词
@@ -392,7 +392,7 @@ export default function ImageAssets() {
           </div>
         </section>
 
-        <section className="glass-panel" style={{ padding: 20, borderRadius: "var(--radius-lg)", marginBottom: 20 }}>
+        <section className="glass-panel asset-upload-panel" style={{ padding: 20, borderRadius: "var(--radius-lg)", marginBottom: 20 }}>
           <div className="asset-upload-grid">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Tags size={25} color="var(--primary)" />

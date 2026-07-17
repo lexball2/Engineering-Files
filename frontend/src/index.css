@@ -77,6 +77,8 @@ html.light select option:checked {
 .dashboard-grid { display: grid; grid-template-columns: minmax(280px, 0.8fr) minmax(420px, 1.2fr); gap: 20px; flex: 1; align-items: stretch; }
 .dashboard-grid > .glass-panel { min-height: 300px; }
 .document-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.asset-filter-panel { position: relative; z-index: 120; overflow: visible; }
+.asset-upload-panel { position: relative; z-index: 20; }
 .asset-filter-grid { display: grid; grid-template-columns: minmax(300px, 1.45fr) minmax(190px, 0.8fr) minmax(190px, 0.8fr) auto; gap: 12px; align-items: end; }
 .asset-upload-grid { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.25fr) auto; gap: 12px; align-items: center; }
 .asset-custom-select { position: relative; width: 100%; }
@@ -97,7 +99,7 @@ html.light select option:checked {
 }
 .asset-custom-select-menu {
   position: absolute;
-  z-index: 80;
+  z-index: 1000;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
@@ -128,7 +130,7 @@ html.light select option:checked {
   color: #111827;
   box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.14);
 }
-.asset-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.asset-toolbar { position: relative; z-index: 10; display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 .asset-toolbar-button, .asset-danger-button { height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border-radius: var(--radius-sm); font-weight: 700; border: 1px solid var(--border-glass); }
 .asset-toolbar-button { background: var(--surface); color: var(--text-primary); }
 .asset-danger-button { background: rgba(239, 68, 68, 0.14); color: #fecaca; }
