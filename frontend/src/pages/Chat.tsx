@@ -29,6 +29,16 @@ function cleanAnswerContent(content: string): string {
     .trim();
 }
 
+function shouldShowSources(content: string, sources?: ChatSource[]): boolean {
+  if (!sources || sources.length === 0) return false;
+  const normalized = content.replace(/\s+/g, "").replace(/[，。！？!?.,;；：:]/g, "");
+  const casualStarts = ["你好", "您好", "嗨", "hi", "hello"];
+  const casualPhrases = ["请问有什么我可以帮", "有什么可以帮", "我可以帮您", "我可以帮助您"];
+  if (normalized.length <= 40 && casualStarts.some((item) => normalized.toLowerCase().startsWith(item))) return false;
+  if (casualPhrases.some((item) => normalized.includes(item))) return false;
+  return true;
+}
+
 function renderInline(text: string): ReactNode[] {
   return text.split(/(\*\*.+?\*\*|`.+?`)/g).filter(Boolean).map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
@@ -273,8 +283,8 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
 
   function Bubble({ role, content, sources, relatedImages }: ChatMessage) {
     const isUser = role === "user";
-    const visibleSources = sources;
     const displayContent = isUser ? content : cleanAnswerContent(content);
+    const visibleSources = !isUser && shouldShowSources(displayContent, sources) ? sources : [];
     return (
       <div style={{ display: "flex", gap: 14, marginBottom: 29, justifyContent: isUser ? "flex-end" : "flex-start" }}>
         {!isUser && <div style={{ width: 49, height: 49, borderRadius: "var(--radius)", background: "var(--primary-container)", border: "1px solid rgba(255,183,125,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Bot size={27} color="var(--primary)" /></div>}
