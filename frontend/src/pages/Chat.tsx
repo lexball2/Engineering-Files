@@ -39,6 +39,37 @@ function shouldShowSources(content: string, sources?: ChatSource[]): boolean {
   return true;
 }
 
+function shouldAllowSourcesForQuestion(question: string): boolean {
+  const normalized = question
+    .replace(/\s+/g, "")
+    .replace(/[\u3002\uff0c\uff01\uff1f\uff1b\uff1a,.!?;:]/g, "")
+    .toLowerCase();
+  if (!normalized) return false;
+
+  const casualExact = [
+    "\u4f60\u597d", "\u60a8\u597d", "\u55e8", "hi", "hello", "\u5728\u5417",
+    "\u8c22\u8c22", "\u611f\u8c22", "\u65e9\u4e0a\u597d", "\u4e0b\u5348\u597d", "\u665a\u4e0a\u597d",
+    "\u4f60\u662f\u8c01", "\u4ecb\u7ecd\u4e00\u4e0b\u4f60\u81ea\u5df1", "\u4f60\u80fd\u505a\u4ec0\u4e48", "\u4f60\u53ef\u4ee5\u505a\u4ec0\u4e48",
+  ];
+  const generalCues = [
+    "\u4ecb\u7ecd\u4f60\u81ea\u5df1", "\u4f60\u5f53\u524d\u4f7f\u7528", "\u4f60\u662f\u4ec0\u4e48\u6a21\u578b",
+    "\u4f60\u662f\u4ec0\u4e48", "\u4f60\u80fd\u5e2e\u6211", "\u80fd\u505a\u4ec0\u4e48", "\u5199\u4e00\u6bb5",
+    "\u5e2e\u6211\u5199", "\u6da6\u8272", "\u7ffb\u8bd1", "\u6539\u5199", "\u751f\u6210\u6587\u6848", "\u5934\u8111\u98ce\u66b4",
+  ];
+  const knowledgeCues = [
+    "\u77e5\u8bc6\u5e93", "\u6587\u6863", "\u6587\u4ef6", "\u8d44\u6599", "\u62a5\u544a", "\u8bf4\u660e\u4e66",
+    "\u5236\u5ea6", "\u6d41\u7a0b", "\u65b9\u6848", "\u5408\u540c", "\u624b\u518c", "\u89c4\u8303",
+    "\u8bb0\u5f55", "\u6765\u6e90", "\u5f15\u7528", "\u6839\u636e", "\u4f9d\u636e", "\u7ed3\u5408",
+    "\u4e0a\u4f20", "\u603b\u7ed3", "\u8fd9\u4efd", "\u8be5\u6587\u4ef6", "\u8fd9\u7bc7", "\u5185\u5bb9",
+    "\u6761\u6b3e", "\u89c4\u5b9a", "\u7528\u6cd5", "\u7981\u5fcc", "\u6ce8\u610f\u4e8b\u9879", "\u6210\u5206",
+  ];
+
+  if (casualExact.includes(normalized)) return false;
+  if (knowledgeCues.some((cue) => normalized.includes(cue))) return true;
+  if (generalCues.some((cue) => normalized.includes(cue))) return false;
+  return false;
+}
+
 function renderInline(text: string): ReactNode[] {
   return text.split(/(\*\*.+?\*\*|`.+?`)/g).filter(Boolean).map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
@@ -161,6 +192,7 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
     if ((!q && !selectedImage) || loading) return;
 
     const imageToSearch = selectedImage;
+    const allowSources = shouldAllowSourcesForQuestion(q);
     const userText = q || `已上传图片：${imageToSearch?.name || "图片"}`;
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
     const assistant: ChatMessage = { role: "assistant", content: "", sources: [], relatedImages: [] };
@@ -222,7 +254,7 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
           const data = line.slice(6);
           if (eventName === "sources") {
             try {
-              assistant.sources = JSON.parse(data) as ChatSource[];
+              assistant.sources = allowSources ? JSON.parse(data) as ChatSource[] : [];
             } catch {
               assistant.sources = [];
             }
@@ -281,10 +313,10 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
     );
   }
 
-  function Bubble({ role, content, sources, relatedImages }: ChatMessage) {
+  function Bubble({ role, content, sources, relatedImages, previousUserContent }: ChatMessage & { previousUserContent?: string }) {
     const isUser = role === "user";
     const displayContent = isUser ? content : cleanAnswerContent(content);
-    const visibleSources = !isUser && shouldShowSources(displayContent, sources) ? sources : [];
+    const visibleSources = !isUser && shouldAllowSourcesForQuestion(previousUserContent || "") && shouldShowSources(displayContent, sources) ? sources : [];
     return (
       <div style={{ display: "flex", gap: 14, marginBottom: 29, justifyContent: isUser ? "flex-end" : "flex-start" }}>
         {!isUser && <div style={{ width: 49, height: 49, borderRadius: "var(--radius)", background: "var(--primary-container)", border: "1px solid rgba(255,183,125,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Bot size={27} color="var(--primary)" /></div>}
@@ -325,7 +357,7 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
             <h3 style={{ fontSize: 31, fontWeight: 700, marginBottom: 14 }}>向知识库提问</h3>
             <p style={{ fontSize: 21, color: "var(--text-muted)", lineHeight: 1.6 }}>可以输入问题，也可以附加图片，让系统识别图片内容并检索相关图片。</p>
           </div>
-        ) : messages.map((message, index) => <Bubble key={index} role={message.role} content={message.content} sources={message.sources} relatedImages={message.relatedImages} />)}
+        ) : messages.map((message, index) => <Bubble key={index} role={message.role} content={message.content} sources={message.sources} relatedImages={message.relatedImages} previousUserContent={index > 0 && messages[index - 1].role === "user" ? messages[index - 1].content : ""} />)}
         {loading && <div style={{ display: "flex", gap: 11, alignItems: "center", padding: "15px 0" }}><Loader2 size={25} color="var(--primary)" style={{ animation: "spin 1s linear infinite" }} /><span style={{ fontSize: 20, color: "var(--text-muted)" }}>思考中...</span></div>}
         <div ref={endRef} />
       </div>
