@@ -15,6 +15,11 @@ interface SourcePreview {
   total_chars: number;
 }
 
+interface QuestionSuggestion {
+  identity: string;
+  questions: string[];
+}
+
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "请求失败";
 }
@@ -68,6 +73,64 @@ function shouldAllowSourcesForQuestion(question: string): boolean {
   if (knowledgeCues.some((cue) => normalized.includes(cue))) return true;
   if (generalCues.some((cue) => normalized.includes(cue))) return false;
   return false;
+}
+
+function inferQuestionSuggestions(text: string): QuestionSuggestion | null {
+  const normalized = text.replace(/\s+/g, "");
+  const isNewEmployee = /新员工|新人|刚入职|刚来|新来的|入职/.test(normalized);
+  const mentionsSelf = /我是|本人是|我在|我属于|我来自/.test(normalized);
+  if (!isNewEmployee && !mentionsSelf) return null;
+
+  const departmentRules = [
+    {
+      keys: ["人事", "人力", "hr", "HR"],
+      name: "人力资源部新员工",
+      questions: ["公司员工手册有哪些重点？", "新员工入职流程是什么？", "员工档案和合同管理流程是什么？", "请总结公司考勤和请假制度。"],
+    },
+    {
+      keys: ["财务", "会计", "出纳"],
+      name: "财务部新员工",
+      questions: ["公司报销流程和票据要求是什么？", "财务审批权限和流程有哪些？", "月度报表需要参考哪些模板？", "新员工需要了解哪些财务制度？"],
+    },
+    {
+      keys: ["行政", "办公室", "后勤"],
+      name: "行政部新员工",
+      questions: ["办公用品和固定资产申请流程是什么？", "会议室和接待流程有哪些规定？", "差旅和用车制度是什么？", "行政部门常用表单在哪里？"],
+    },
+    {
+      keys: ["技术", "研发", "开发", "工程", "IT", "it"],
+      name: "技术部新员工",
+      questions: ["开发环境和账号权限如何申请？", "代码规范和提交流程是什么？", "项目部署和上线流程有哪些？", "技术文档和接口文档在哪里？"],
+    },
+    {
+      keys: ["市场", "新媒体", "运营", "内容"],
+      name: "市场/新媒体部新员工",
+      questions: ["公司新媒体发布规范是什么？", "图片资产如何检索和下载使用？", "不同平台内容审核流程是什么？", "品牌视觉和文案规范有哪些？"],
+    },
+    {
+      keys: ["销售", "商务", "客户"],
+      name: "销售部新员工",
+      questions: ["客户跟进和CRM填写规范是什么？", "报价和合同审批流程是什么？", "销售回款流程需要注意什么？", "常用产品资料和话术在哪里？"],
+    },
+    {
+      keys: ["客服", "售后"],
+      name: "客服/售后部新员工",
+      questions: ["客户问题处理流程是什么？", "常见问题回复话术有哪些？", "投诉升级机制是什么？", "售后记录应该如何填写？"],
+    },
+  ];
+
+  const matched = departmentRules.find((rule) => rule.keys.some((key) => normalized.includes(key)));
+  if (matched) return { identity: matched.name, questions: matched.questions };
+
+  return {
+    identity: "新员工",
+    questions: [
+      "新员工入职需要完成哪些事项？",
+      "公司规章制度有哪些重点？",
+      "我应该先了解哪些部门流程？",
+      "常用文档、制度和模板在哪里查看？",
+    ],
+  };
 }
 
 function renderInline(text: string): ReactNode[] {
@@ -187,15 +250,16 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
     }
   }
 
-  async function send() {
-    const q = input.trim();
+  async function send(questionOverride?: string) {
+    const q = (questionOverride ?? input).trim();
     if ((!q && !selectedImage) || loading) return;
 
     const imageToSearch = selectedImage;
     const allowSources = shouldAllowSourcesForQuestion(q);
+    const suggestions = inferQuestionSuggestions(q);
     const userText = q || `已上传图片：${imageToSearch?.name || "图片"}`;
     setMessages((prev) => [...prev, { role: "user", content: userText }]);
-    const assistant: ChatMessage = { role: "assistant", content: "", sources: [], relatedImages: [] };
+    const assistant: ChatMessage = { role: "assistant", content: "", sources: [], relatedImages: [], identityGuess: suggestions?.identity, suggestedQuestions: suggestions?.questions };
     setMessages((prev) => [...prev, assistant]);
     setInput("");
     setSelectedImage(null);
@@ -313,7 +377,41 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
     );
   }
 
-  function Bubble({ role, content, sources, relatedImages, previousUserContent }: ChatMessage & { previousUserContent?: string }) {
+  function SuggestedQuestionPanel({ identity, questions }: { identity?: string; questions?: string[] }) {
+    if (!identity || !questions || questions.length === 0) return null;
+    return (
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border-glass)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9, color: "var(--text-muted)", fontSize: 13 }}>
+          <Sparkles size={15} color="var(--primary)" />
+          <span>猜你可能是：{identity}</span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {questions.map((question) => (
+            <button
+              key={question}
+              type="button"
+              disabled={loading}
+              onClick={() => send(question)}
+              style={{
+                padding: "8px 11px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border-glass)",
+                background: "rgba(255,183,125,0.08)",
+                color: "var(--text-primary)",
+                fontSize: 13,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.55 : 1,
+              }}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function Bubble({ role, content, sources, relatedImages, identityGuess, suggestedQuestions, previousUserContent }: ChatMessage & { previousUserContent?: string }) {
     const isUser = role === "user";
     const displayContent = isUser ? content : cleanAnswerContent(content);
     const visibleSources = !isUser && shouldAllowSourcesForQuestion(previousUserContent || "") && shouldShowSources(displayContent, sources) ? sources : [];
@@ -324,6 +422,7 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
           <div style={{ padding: "21px 25px", borderRadius: "var(--radius-lg)", ...(isUser ? { background: "var(--chat-user-bubble)", border: "1px solid var(--chat-user-bubble-border)", borderTopRightRadius: 4 } : { background: "var(--surface)", border: "1px solid var(--border-glass)", borderTopLeftRadius: 4 }), wordBreak: "break-word", lineHeight: 1.7 }}>
             <SafeMessage content={displayContent} />
             {!isUser && <ImageResults images={relatedImages} />}
+            {!isUser && <SuggestedQuestionPanel identity={identityGuess} questions={suggestedQuestions} />}
           </div>
           {!isUser && visibleSources && visibleSources.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
@@ -357,7 +456,7 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
             <h3 style={{ fontSize: 31, fontWeight: 700, marginBottom: 14 }}>向知识库提问</h3>
             <p style={{ fontSize: 21, color: "var(--text-muted)", lineHeight: 1.6 }}>可以输入问题，也可以附加图片，让系统识别图片内容并检索相关图片。</p>
           </div>
-        ) : messages.map((message, index) => <Bubble key={index} role={message.role} content={message.content} sources={message.sources} relatedImages={message.relatedImages} previousUserContent={index > 0 && messages[index - 1].role === "user" ? messages[index - 1].content : ""} />)}
+        ) : messages.map((message, index) => <Bubble key={index} role={message.role} content={message.content} sources={message.sources} relatedImages={message.relatedImages} identityGuess={message.identityGuess} suggestedQuestions={message.suggestedQuestions} previousUserContent={index > 0 && messages[index - 1].role === "user" ? messages[index - 1].content : ""} />)}
         {loading && <div style={{ display: "flex", gap: 11, alignItems: "center", padding: "15px 0" }}><Loader2 size={25} color="var(--primary)" style={{ animation: "spin 1s linear infinite" }} /><span style={{ fontSize: 20, color: "var(--text-muted)" }}>思考中...</span></div>}
         <div ref={endRef} />
       </div>
@@ -392,7 +491,7 @@ export default function Chat({ messages, setMessages, loading, setLoading }: Cha
           <button onClick={() => document.getElementById("chat-image-input")?.click()} title="上传图片识别" style={{ width: 34, height: 34, borderRadius: "var(--radius-sm)", border: "none", background: "rgba(255,255,255,0.04)", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, alignSelf: "center", padding: 0 }}><ImageIcon size={17} /></button>
           <textarea value={input} onChange={(event) => setInput(event.target.value)} placeholder="输入您的问题..." onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); send(); } }}
             style={{ flex: 1, minHeight: 34, height: 34, border: "none", outline: "none", resize: "none", background: "transparent", color: "var(--text-primary)", fontSize: 12, fontFamily: "inherit", lineHeight: "18px", padding: "8px 0", overflowY: "auto" }} />
-          <button onClick={send} disabled={loading || (!input.trim() && !selectedImage)} style={{ width: 36, height: 36, borderRadius: "var(--radius-sm)", border: "none", background: loading || (!input.trim() && !selectedImage) ? "var(--text-muted)" : "var(--primary-solid)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: loading || (!input.trim() && !selectedImage) ? "not-allowed" : "pointer", opacity: loading || (!input.trim() && !selectedImage) ? 0.5 : 1, boxShadow: loading || (!input.trim() && !selectedImage) ? "none" : "0 0 15px var(--primary-glow)", transition: "all 0.2s", alignSelf: "center", padding: 0 }}><Send size={17} /></button>
+          <button onClick={() => send()} disabled={loading || (!input.trim() && !selectedImage)} style={{ width: 36, height: 36, borderRadius: "var(--radius-sm)", border: "none", background: loading || (!input.trim() && !selectedImage) ? "var(--text-muted)" : "var(--primary-solid)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: loading || (!input.trim() && !selectedImage) ? "not-allowed" : "pointer", opacity: loading || (!input.trim() && !selectedImage) ? 0.5 : 1, boxShadow: loading || (!input.trim() && !selectedImage) ? "none" : "0 0 15px var(--primary-glow)", transition: "all 0.2s", alignSelf: "center", padding: 0 }}><Send size={17} /></button>
         </div>
       </div>
     </div>

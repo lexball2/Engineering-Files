@@ -14,6 +14,8 @@ export interface ChatMessage {
   content: string;
   sources?: ChatSource[];
   relatedImages?: ChatImage[];
+  identityGuess?: string;
+  suggestedQuestions?: string[];
 }
 
 export interface ChatSource {

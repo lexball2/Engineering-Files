@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     # ===== JWT 鉴权 =====
     JWT_SECRET: str = "your-secret-key-change-me"   # 生产环境换成长随机串
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_HOURS: int = 1
+    JWT_EXPIRE_HOURS: int = 3
     JWT_ISSUER: str = "engineering-files-api"
     JWT_AUDIENCE: str = "engineering-files-web"
     RATE_LIMIT_PER_MINUTE: int = 10        # 每分钟每 IP 最多请求数（登录/注册）
