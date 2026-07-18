@@ -60,6 +60,18 @@ RAG_PROMPT = ChatPromptTemplate.from_messages([
     ("human", "{question}"),
 ])
 
+GENERAL_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """你是企业智能知识库助手。
+对话历史回顾：
+{history}
+
+规则：
+1. 当前问题未明确要求查询知识库或引用已上传文档，请按普通助手方式自然回答；
+2. 不要声称已经查询、引用或依据某个知识库文件；
+3. 如果用户后续明确要求根据文档、报告、说明书、制度、资料或知识库回答，再切换到知识库检索模式。"""),
+    ("human", "{question}"),
+])
+
 # ====================== 2. 优化工具函数 ======================
 def _doc_hash(text: str) -> str:
     """完整文本hash去重，修复缺陷10"""
@@ -155,6 +167,11 @@ def get_answer_chain(collection_name: str = "knowledge_base"):
     return RAG_PROMPT | _get_llm() | StrOutputParser()
 
 
+@lru_cache(maxsize=1)
+def get_general_chain():
+    return GENERAL_PROMPT | _get_llm() | StrOutputParser()
+
+
 def build_context(docs_with_score) -> str:
     if not docs_with_score:
         return "无匹配知识库内容"
@@ -185,6 +202,19 @@ def ask(
         logger.error(f"问答异常: {e}", exc_info=True)
         return "抱歉，处理问题时出错，请稍后重试"
 
+def ask_general(question: str, memory_key: str) -> str:
+    """普通对话回答，不检索知识库，也不返回来源。"""
+    try:
+        chain = get_general_chain()
+        history = memory.get_history(memory_key)
+        ans = chain.invoke({"question": question, "history": history})
+        memory.add(memory_key, question, ans)
+        return ans
+    except Exception as e:
+        logger.error(f"普通问答异常: {e}", exc_info=True)
+        return "抱歉，处理问题时出错，请稍后重试。"
+
+
 def ask_stream(
     question: str,
     memory_key: str,
@@ -205,6 +235,21 @@ def ask_stream(
     except Exception as e:
         logger.error(f"流式异常: {e}", exc_info=True)
         yield "抱歉，处理问题时出错，请稍后重试"
+
+def ask_general_stream(question: str, memory_key: str):
+    """普通对话流式回答，不检索知识库，也不返回来源。"""
+    try:
+        chain = get_general_chain()
+        history = memory.get_history(memory_key)
+        full_text = ""
+        for chunk in chain.stream({"question": question, "history": history}):
+            full_text += chunk
+            yield chunk
+        memory.add(memory_key, question, full_text)
+    except Exception as e:
+        logger.error(f"普通流式问答异常: {e}", exc_info=True)
+        yield "抱歉，处理问题时出错，请稍后重试。"
+
 
 async def ask_async(
     question: str,

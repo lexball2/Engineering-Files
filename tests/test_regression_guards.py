@@ -29,3 +29,12 @@ def test_image_download_counts_after_response_completion():
 
     assert "BackgroundTask(_record_completed_image_download" in download_func
     assert "db.commit()" not in download_func
+
+
+def test_chat_retrieval_intent_skips_casual_questions():
+    from backend.api.chat import should_use_knowledge_base
+
+    assert should_use_knowledge_base("你好") is False
+    assert should_use_knowledge_base("请用三句话介绍你自己") is False
+    assert should_use_knowledge_base("痛经软膏说明书主要内容是什么") is True
+    assert should_use_knowledge_base("根据上传文档总结注意事项") is True

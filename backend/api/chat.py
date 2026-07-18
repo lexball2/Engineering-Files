@@ -1,6 +1,7 @@
 ﻿"""知识库问答接口——接收用户问题，返回 AI 回答"""
 import logging
 import json
+import re
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -8,7 +9,7 @@ from pydantic import BaseModel, Field
 from backend.api.images import is_image_request, search_images_by_text
 from backend.core.memory import memory
 from backend.config import settings
-from backend.core.rag_chain import ask, ask_stream, extract_sources, retrieve_documents
+from backend.core.rag_chain import ask, ask_general, ask_general_stream, ask_stream, extract_sources, retrieve_documents
 from backend.core.auth_dependencies import get_current_user
 from backend.core.document_loader import load_document
 from backend.core.storage import storage
@@ -41,6 +42,41 @@ def _format_image_answer(related_images: list[dict]) -> str:
         intro += "\n\n优先返回的图片包括：\n" + "\n".join(f"{idx}. {name}" for idx, name in enumerate(names, 1))
     intro += "\n\n这些结果会结合图片向量相似度、自动生成的描述/标签和下载热度排序。"
     return intro
+
+
+_GENERAL_CHAT_EXACT = {
+    "你好", "您好", "嗨", "hi", "hello", "在吗", "谢谢", "感谢", "早上好", "下午好", "晚上好",
+    "你是谁", "介绍一下你自己", "你能做什么", "你可以做什么",
+}
+
+_GENERAL_CHAT_CUES = {
+    "介绍你自己", "你当前使用", "你是什么模型", "你是什么", "你能帮我", "能做什么",
+    "写一段", "帮我写", "润色", "翻译", "改写", "生成文案", "头脑风暴", "讲个",
+}
+
+_KNOWLEDGE_RETRIEVAL_CUES = {
+    "知识库", "文档", "文件", "资料", "报告", "说明书", "制度", "流程", "方案", "合同",
+    "手册", "规范", "记录", "来源", "引用", "根据", "依据", "结合", "上传", "总结",
+    "这份", "该文件", "这篇", "上述", "上面", "里面", "内容", "条款", "规定",
+    "用法", "禁忌", "注意事项", "成分", "规格", "有效期", "批准文号", "生产企业",
+}
+
+
+def should_use_knowledge_base(question: str) -> bool:
+    """判断问题是否需要检索知识库；普通闲聊和通用创作不触发文档来源。"""
+    text = re.sub(r"\s+", "", question.strip().lower())
+    if not text:
+        return False
+    stripped = text.strip("，。！？!?.,;；：:")
+    if stripped in _GENERAL_CHAT_EXACT:
+        return False
+    if len(stripped) <= 8 and any(cue in stripped for cue in _GENERAL_CHAT_EXACT):
+        return False
+    if any(cue in text for cue in _KNOWLEDGE_RETRIEVAL_CUES):
+        return True
+    if any(cue in text for cue in _GENERAL_CHAT_CUES):
+        return False
+    return False
 
 
 class ChatRequest(BaseModel):
@@ -132,8 +168,6 @@ def chat(req: ChatRequest, current_user: User = Depends(get_current_user)):
     """向知识库提问（非流式），返回完整回答"""
     try:
         filter_expr = _department_filter(current_user)
-        retrieved_docs = retrieve_documents(req.question, filter=filter_expr)
-        sources = extract_sources(retrieved_docs)
         related_images = []
         if is_image_request(req.question):
             db = SessionLocal()
@@ -146,9 +180,15 @@ def chat(req: ChatRequest, current_user: User = Depends(get_current_user)):
             return ChatResponse(
                 answer=_format_image_answer(related_images),
                 session_id=req.session_id,
-                sources=sources,
+                sources=[],
                 related_images=related_images,
             )
+        if not should_use_knowledge_base(req.question):
+            answer = ask_general(req.question, memory_key=_memory_key(current_user, req.session_id))
+            return ChatResponse(answer=answer, session_id=req.session_id, sources=[], related_images=related_images)
+
+        retrieved_docs = retrieve_documents(req.question, filter=filter_expr)
+        sources = extract_sources(retrieved_docs)
         answer = ask(
             req.question,
             memory_key=_memory_key(current_user, req.session_id),
@@ -167,10 +207,8 @@ def chat_stream(req: ChatRequest, current_user: User = Depends(get_current_user)
     def generate():
         try:
             filter_expr = _department_filter(current_user)
-            retrieved_docs = retrieve_documents(req.question, filter=filter_expr)
-            sources = extract_sources(retrieved_docs)
-            yield _sse("sources", sources)
             if is_image_request(req.question):
+                yield _sse("sources", [])
                 db = SessionLocal()
                 try:
                     related_images = search_images_by_text(req.question, db)
@@ -183,6 +221,17 @@ def chat_stream(req: ChatRequest, current_user: User = Depends(get_current_user)
                 yield _sse("chunk", _format_image_answer(related_images))
                 yield _sse("done", True)
                 return
+
+            if not should_use_knowledge_base(req.question):
+                yield _sse("sources", [])
+                for chunk in ask_general_stream(req.question, memory_key=_memory_key(current_user, req.session_id)):
+                    yield _sse("chunk", chunk)
+                yield _sse("done", True)
+                return
+
+            retrieved_docs = retrieve_documents(req.question, filter=filter_expr)
+            sources = extract_sources(retrieved_docs)
+            yield _sse("sources", sources)
             for chunk in ask_stream(
                 req.question,
                 memory_key=_memory_key(current_user, req.session_id),
