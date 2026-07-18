@@ -55,8 +55,8 @@ def _validate_production_settings() -> None:
         problems.append("MILVUS_TOKEN is required")
     if not settings.milvus_uri.startswith("https://") and not using_local_milvus:
         problems.append("MILVUS_URI must use https:// in production")
-    if not settings.DEEPSEEK_API_KEY or not settings.DASHSCOPE_API_KEY:
-        problems.append("DeepSeek and DashScope API keys are required")
+    if not settings.llm_api_key or not settings.DASHSCOPE_API_KEY:
+        problems.append("LLM_API_KEY and DASHSCOPE_API_KEY are required")
     if settings.STORAGE_BACKEND != "oss":
         problems.append("STORAGE_BACKEND must be oss in production")
     if not settings.OSS_BUCKET or not settings.OSS_ENDPOINT or not settings.OSS_REGION:
