@@ -5,6 +5,8 @@ import type { ChatImage, ChatMessage, ChatSource } from "../App";
 interface ChatProps {
   messages: ChatMessage[];
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+  loading: boolean;
+  setLoading: Dispatch<SetStateAction<boolean>>;
 }
 
 interface SourcePreview {
@@ -88,9 +90,8 @@ async function downloadImage(image: ChatImage) {
   URL.revokeObjectURL(url);
 }
 
-export default function Chat({ messages, setMessages }: ChatProps) {
+export default function Chat({ messages, setMessages, loading, setLoading }: ChatProps) {
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [sourcePreview, setSourcePreview] = useState<SourcePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -100,8 +101,6 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  useEffect(() => () => abortRef.current?.abort(), []);
 
   async function clearHistory() {
     const sid = localStorage.getItem("session_id");

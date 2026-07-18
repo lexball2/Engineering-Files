@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     )
 
     # ===== 大模型 API =====
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
     DASHSCOPE_API_KEY: str = ""
@@ -53,7 +55,7 @@ class Settings(BaseSettings):
     MAX_DOCUMENT_TEXT_CHARS: int = 2_000_000
 
     # ===== LLM 对话模型 =====
-    LLM_MODEL: str = "deepseek-v4-pro"
+    LLM_MODEL: str = "qwen3.7-plus"
     LLM_TEMPERATURE: float = 0.3
 
     # ===== RAG 配置 =====
@@ -107,6 +109,14 @@ class Settings(BaseSettings):
     TRUSTED_HOSTS: str = "localhost,127.0.0.1"
     AUTO_INIT_DB: bool = True
     RAG_REQUIRE_DEPARTMENT_MATCH: bool = False
+
+    @property
+    def llm_api_key(self) -> str:
+        return self.LLM_API_KEY or self.DEEPSEEK_API_KEY
+
+    @property
+    def llm_base_url(self) -> str:
+        return self.LLM_BASE_URL or self.DEEPSEEK_BASE_URL
 
     @field_validator("JWT_ALGORITHM")
     @classmethod

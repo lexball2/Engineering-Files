@@ -28,8 +28,8 @@ def _get_classifier_llm():
     return ChatOpenAI(
         model=settings.LLM_MODEL,
         temperature=0,
-        api_key=settings.DEEPSEEK_API_KEY,
-        base_url=settings.DEEPSEEK_BASE_URL,
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
         timeout=15,
         max_retries=2,
     )

@@ -67,6 +67,7 @@ function ProtectedLayout({ onLogout, role }: { onLogout: () => void; role: UserR
   const [compactViewport, setCompactViewport] = useState(() => window.matchMedia("(max-width: 900px)").matches);
   const [lightMode, setLightMode] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(loadChatMessages);
+  const [chatLoading, setChatLoading] = useState(false);
   const isStaff = role === "employee" || role === "admin";
 
   const setLimitedChatMessages = useCallback((value: SetStateAction<ChatMessage[]>) => {
@@ -121,7 +122,7 @@ function ProtectedLayout({ onLogout, role }: { onLogout: () => void; role: UserR
       <div className={`app-main${sidebarCollapsed ? " content-expanded" : ""}`} style={{ marginLeft: ml, transition: "margin-left 0.25s" }}>
         <Routes>
           <Route path="/dashboard" element={isStaff ? <Dashboard /> : <Navigate to="/chat" replace />} />
-          <Route path="/chat" element={<Chat messages={chatMessages} setMessages={setLimitedChatMessages} />} />
+          <Route path="/chat" element={<Chat messages={chatMessages} setMessages={setLimitedChatMessages} loading={chatLoading} setLoading={setChatLoading} />} />
           <Route path="/documents" element={isStaff ? <Documents /> : <Navigate to="/chat" replace />} />
           <Route path="/image-assets" element={isStaff ? <ImageAssets /> : <Navigate to="/chat" replace />} />
           <Route path="/admin/users" element={role === "admin" ? <AdminUsers /> : <Navigate to={isStaff ? "/dashboard" : "/chat"} replace />} />
