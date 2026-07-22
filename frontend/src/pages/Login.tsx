@@ -59,8 +59,8 @@ export default function Login({ onLogin }: { onLogin: (u: string, role: UserRole
       setError("两次密码不一致");
       return;
     }
-    if (tab === "register" && password.length < 6) {
-      setError("密码至少6位");
+    if (tab === "register" && password.length < 8) {
+      setError("密码至少8位");
       return;
     }
     setLoading(true);
