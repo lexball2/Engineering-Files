@@ -3,7 +3,7 @@ import logging
 import re
 import secrets
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -85,6 +85,9 @@ class UpdateUserRoleRequest(BaseModel):
 class UpdateUserStatusRequest(BaseModel):
     username: str
     is_active: bool
+
+class DeleteUserRequest(BaseModel):
+    username: str
 
 
 # ============================================================
@@ -273,10 +276,15 @@ def _active_admin_count(db: Session) -> int:
 
 @router.get("/auth/users", response_model=list[UserListItem], summary="管理员查看用户列表")
 def list_users(
+    username: str = Query(default="", max_length=50),
     _current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    users = db.query(User).filter(User.username != SYSTEM_GUEST_USERNAME).order_by(User.created_at.desc()).all()
+    query = db.query(User).filter(User.username != SYSTEM_GUEST_USERNAME)
+    username = username.strip()
+    if username:
+        query = query.filter(User.username.ilike(f"%{username}%"))
+    users = query.order_by(User.created_at.desc()).all()
     return [
         UserListItem(
             id=user.id,
@@ -338,3 +346,27 @@ def update_user_status(
     db.commit()
     logger.info("[账号状态] %s 将 %s 设置为 %s", current_user.username, target.username, req.is_active)
     return MessageResponse(message="用户状态已更新")
+
+
+@router.post("/auth/users/delete", response_model=MessageResponse, summary="管理员删除用户")
+def delete_user(
+    req: DeleteUserRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    username = req.username.strip()
+    target = db.query(User).filter(User.username == username).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if target.username == SYSTEM_GUEST_USERNAME:
+        raise HTTPException(status_code=400, detail="系统游客账号不可删除")
+    if target.username == current_user.username:
+        raise HTTPException(status_code=400, detail="不能删除自己的账号")
+    if target.role == "admin" and target.is_active and _active_admin_count(db) <= 1:
+        raise HTTPException(status_code=400, detail="至少需要保留一个启用的管理员")
+
+    deleted_username = target.username
+    db.delete(target)
+    db.commit()
+    logger.info("[删除用户] %s 删除了 %s", current_user.username, deleted_username)
+    return MessageResponse(message="用户已删除")

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { ShieldCheck, UserCheck, UserX } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, ShieldCheck, Trash2, UserCheck, UserX, X } from "lucide-react";
 import { api } from "../api/client";
 import type { UserRole } from "../api/auth";
 
@@ -20,12 +20,18 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [activeKeyword, setActiveKeyword] = useState("");
   const currentUsername = localStorage.getItem("username") || "";
 
-  async function loadUsers() {
+  const loadUsers = useCallback(async (nextKeyword: string) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/users", { credentials: "same-origin" });
+      const params = new URLSearchParams();
+      const trimmedKeyword = nextKeyword.trim();
+      if (trimmedKeyword) params.set("username", trimmedKeyword);
+      const query = params.toString();
+      const res = await fetch(`/api/auth/users${query ? `?${query}` : ""}`, { credentials: "same-origin" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || `请求失败 (${res.status})`);
@@ -36,13 +42,25 @@ export default function AdminUsers() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  function searchUsers() {
+    const trimmedKeyword = keyword.trim();
+    setActiveKeyword(trimmedKeyword);
+    loadUsers(trimmedKeyword);
+  }
+
+  function clearSearch() {
+    setKeyword("");
+    setActiveKeyword("");
+    loadUsers("");
   }
 
   async function setRole(username: string, role: UserRole) {
     try {
       await api.post("/auth/users/role", { username, role });
       setToast("用户角色已更新");
-      await loadUsers();
+      await loadUsers(activeKeyword);
     } catch (error) {
       setToast(getErrorMessage(error));
     }
@@ -52,15 +70,26 @@ export default function AdminUsers() {
     try {
       await api.post("/auth/users/status", { username, is_active });
       setToast("用户状态已更新");
-      await loadUsers();
+      await loadUsers(activeKeyword);
+    } catch (error) {
+      setToast(getErrorMessage(error));
+    }
+  }
+
+  async function deleteUser(username: string) {
+    if (!window.confirm(`确认删除用户「${username}」吗？删除后该账号将无法登录。`)) return;
+    try {
+      await api.post("/auth/users/delete", { username });
+      setToast("用户已删除");
+      await loadUsers(activeKeyword);
     } catch (error) {
       setToast(getErrorMessage(error));
     }
   }
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    loadUsers("");
+  }, [loadUsers]);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--body-gradient)" }}>
@@ -68,12 +97,32 @@ export default function AdminUsers() {
         <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--primary)", display: "flex", alignItems: "center", gap: 9 }}>
           <ShieldCheck size={25} /> 用户权限
         </h2>
-        <button onClick={loadUsers} disabled={loading} style={{ height: 45, padding: "0 19px", borderRadius: "var(--radius-sm)", background: "var(--primary-container)", color: "var(--primary)", fontWeight: 700 }}>
+        <button onClick={() => loadUsers(activeKeyword)} disabled={loading} style={{ height: 45, padding: "0 19px", borderRadius: "var(--radius-sm)", background: "var(--primary-container)", color: "var(--primary)", fontWeight: 700 }}>
           {loading ? "刷新中..." : "刷新"}
         </button>
       </header>
 
       <main className="page-frame page-content">
+        <section className="glass-panel" style={{ marginBottom: 16, padding: 16, display: "grid", gridTemplateColumns: "minmax(220px, 1fr) auto auto", gap: 10, alignItems: "center" }}>
+          <label style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <Search size={18} style={{ position: "absolute", left: 14, color: "var(--text-muted)" }} />
+            <input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && searchUsers()}
+              placeholder="按用户名查找"
+              aria-label="按用户名查找"
+              style={{ width: "100%", height: 40, padding: "0 14px 0 40px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-glass)", background: "var(--surface)", color: "var(--text-primary)" }}
+            />
+          </label>
+          <button onClick={searchUsers} disabled={loading} style={{ height: 40, padding: "0 16px", borderRadius: "var(--radius-sm)", background: "var(--primary-solid)", color: "var(--on-primary)", fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            <Search size={18} /> 查找
+          </button>
+          <button onClick={clearSearch} disabled={loading && !activeKeyword} style={{ height: 40, padding: "0 16px", borderRadius: "var(--radius-sm)", background: "var(--surface)", color: "var(--text-primary)", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            <X size={18} /> 清空
+          </button>
+        </section>
+
         <section className="glass-panel admin-table-wrap" style={{ borderRadius: "var(--radius-lg)" }}>
           <table className="admin-users-table" style={{ width: "100%", borderCollapse: "collapse", color: "var(--text-primary)" }}>
             <thead>
@@ -116,6 +165,9 @@ export default function AdminUsers() {
                             <UserCheck size={21} /> 启用
                           </button>
                         )}
+                        <button disabled={isSelf} onClick={() => deleteUser(user.username)} style={{ height: 41, padding: "0 15px", borderRadius: "var(--radius-sm)", background: "rgba(224,49,49,0.12)", color: "#e03131", opacity: isSelf ? 0.45 : 1, display: "flex", alignItems: "center", gap: 7 }}>
+                          <Trash2 size={21} /> 删除
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -123,7 +175,7 @@ export default function AdminUsers() {
               })}
             </tbody>
           </table>
-          {!loading && users.length === 0 && <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>暂无用户</div>}
+          {!loading && users.length === 0 && <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>{activeKeyword ? "没有匹配的用户" : "暂无用户"}</div>}
         </section>
       </main>
 
